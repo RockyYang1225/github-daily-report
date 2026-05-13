@@ -102,7 +102,7 @@ Optional configuration:
 
 - `OPENROUTER_BASE_URL`, defaulting to `https://openrouter.ai/api/v1`
 
-The model is not hard-coded. Documentation can recommend candidates, but the workflow requires `OPENROUTER_MODEL` to be set. This keeps the project flexible across cost, speed, and quality preferences.
+The recommended first model is `~anthropic/claude-sonnet-latest`, OpenRouter's latest Claude Sonnet router. The model is still configured through `OPENROUTER_MODEL` rather than hard-coded in application code, so it can be changed later without editing the report pipeline.
 
 The summarizer produces a Chinese report with:
 
@@ -248,5 +248,5 @@ The implementation may keep individual source strategies simple at first as long
 - Content scope: full scope, including GitHub, Hugging Face, Papers with Code, arXiv, RSS, and Skills/Agents/tools.
 - Report style: developer practical plus personal learning.
 - Summary provider: OpenRouter.
-- Model choice: configured through `OPENROUTER_MODEL`, not decided in code.
+- Model choice: use OpenRouter `~anthropic/claude-sonnet-latest` through `OPENROUTER_MODEL`.
 - Output language and format: Chinese HTML email plus Markdown archive in the repository.
