@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Iterable, List
 
 import httpx
@@ -59,13 +60,14 @@ class OpenRouterSummarizer:
                     },
                 ],
                 "temperature": 0.2,
+                "response_format": {"type": "json_object"},
             },
             timeout=60.0,
         )
         try:
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
-            parsed = json.loads(content)
+            parsed = _parse_json_content(content)
         except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError) as exc:
             raise SummarizerError(f"OpenRouter summarization failed: {exc}") from exc
 
@@ -90,6 +92,22 @@ def _group_items(items: Iterable[ReportItem]) -> dict:
         grouped.setdefault(section, []).append(item)
     grouped["今日必看"] = item_list[:5]
     return grouped
+
+
+def _parse_json_content(content: str) -> dict:
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*", "", stripped, flags=re.IGNORECASE)
+        stripped = re.sub(r"\s*```$", "", stripped)
+    if not stripped.startswith("{"):
+        start = stripped.find("{")
+        end = stripped.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            stripped = stripped[start : end + 1]
+    parsed = json.loads(stripped)
+    if not isinstance(parsed, dict):
+        raise json.JSONDecodeError("Expected JSON object", stripped, 0)
+    return parsed
 
 
 class FixtureSummarizer:

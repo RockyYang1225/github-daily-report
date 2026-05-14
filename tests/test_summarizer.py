@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import respx
 
@@ -25,5 +27,32 @@ def test_openrouter_summarizer_returns_chinese_structured_content(sample_items):
     content = summarizer.summarize(sample_items)
 
     assert route.called
+    request = route.calls.last.request
+    assert request is not None
+    assert json.loads(request.content)["response_format"] == {"type": "json_object"}
     assert content.executive_summary == "今日重点"
     assert content.recommendations == ["试用工具"]
+
+
+@respx.mock
+def test_openrouter_summarizer_accepts_json_code_block(sample_items):
+    respx.post("https://openrouter.ai/api/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": '```json\n{"executive_summary":"今日重点","recommendations":["阅读论文"],"sections":{}}\n```'
+                        }
+                    }
+                ]
+            },
+        )
+    )
+
+    summarizer = OpenRouterSummarizer(api_key="key", model="test-model")
+    content = summarizer.summarize(sample_items)
+
+    assert content.executive_summary == "今日重点"
+    assert content.recommendations == ["阅读论文"]
