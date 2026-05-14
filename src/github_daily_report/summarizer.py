@@ -74,7 +74,7 @@ class OpenRouterSummarizer:
         return ReportContent(
             executive_summary=parsed.get("executive_summary", ""),
             sections=_group_items(original_items),
-            recommendations=list(parsed.get("recommendations", [])),
+            recommendations=_normalize_recommendations(parsed.get("recommendations", [])),
         )
 
 
@@ -108,6 +108,30 @@ def _parse_json_content(content: str) -> dict:
     if not isinstance(parsed, dict):
         raise json.JSONDecodeError("Expected JSON object", stripped, 0)
     return parsed
+
+
+def _normalize_recommendations(raw_recommendations) -> List[str]:
+    if not isinstance(raw_recommendations, list):
+        return []
+
+    normalized: List[str] = []
+    for entry in raw_recommendations:
+        if isinstance(entry, str):
+            text = entry.strip()
+        elif isinstance(entry, dict):
+            priority = str(entry.get("priority", "")).strip()
+            action = str(entry.get("action", entry.get("title", ""))).strip()
+            reason = str(entry.get("reason", entry.get("why", ""))).strip()
+            head = f"{priority}：{action}" if priority and action else action or priority
+            if head and reason:
+                text = f"{head}。{reason}"
+            else:
+                text = head or reason
+        else:
+            text = str(entry).strip()
+        if text:
+            normalized.append(text)
+    return normalized
 
 
 class FixtureSummarizer:

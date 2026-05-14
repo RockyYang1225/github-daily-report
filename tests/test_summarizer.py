@@ -56,3 +56,34 @@ def test_openrouter_summarizer_accepts_json_code_block(sample_items):
 
     assert content.executive_summary == "今日重点"
     assert content.recommendations == ["阅读论文"]
+
+
+@respx.mock
+def test_openrouter_summarizer_normalizes_object_recommendations(sample_items):
+    respx.post("https://openrouter.ai/api/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"executive_summary":"今日重点","recommendations":['
+                                '{"priority":"高","action":"试用 agent-kit","reason":"适合构建 Agent 基础设施。"},'
+                                '{"action":"阅读论文","reason":"了解长任务连续性。"}'
+                                '],"sections":{}}'
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+    )
+
+    summarizer = OpenRouterSummarizer(api_key="key", model="test-model")
+    content = summarizer.summarize(sample_items)
+
+    assert content.recommendations == [
+        "高：试用 agent-kit。适合构建 Agent 基础设施。",
+        "阅读论文。了解长任务连续性。",
+    ]
