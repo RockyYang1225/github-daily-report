@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+import json
+from typing import Iterable, List
+
+import httpx
+
+from github_daily_report.models import ReportContent, ReportItem
+
+
+class SummarizerError(RuntimeError):
+    """Raised when the LLM cannot produce valid report content."""
+
+
+class OpenRouterSummarizer:
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        base_url: str = "https://openrouter.ai/api/v1",
+    ):
+        self.api_key = api_key
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+
+    def summarize(self, items: Iterable[ReportItem]) -> ReportContent:
+        original_items = list(items)
+        item_payload = [
+            {
+                "title": item.title,
+                "url": item.url,
+                "source": item.source,
+                "category": item.category,
+                "summary": item.summary,
+                "tags": item.tags,
+            }
+            for item in original_items
+        ]
+        response = httpx.post(
+            f"{self.base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "HTTP-Referer": "https://github.com/RockyYang1225/github-daily-report",
+                "X-Title": "GitHub Daily Report",
+            },
+            json={
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "你是 AI 开发者日报编辑。请只返回严格 JSON，包含 "
+                            "executive_summary、sections、recommendations。"
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": json.dumps(item_payload, ensure_ascii=False),
+                    },
+                ],
+                "temperature": 0.2,
+            },
+            timeout=60.0,
+        )
+        try:
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+            parsed = json.loads(content)
+        except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError) as exc:
+            raise SummarizerError(f"OpenRouter summarization failed: {exc}") from exc
+
+        return ReportContent(
+            executive_summary=parsed.get("executive_summary", ""),
+            sections=_group_items(original_items),
+            recommendations=list(parsed.get("recommendations", [])),
+        )
+
+
+def _group_items(items: Iterable[ReportItem]) -> dict:
+    grouped: dict = {}
+    item_list = list(items)
+    for item in item_list:
+        section = {
+            "github": "GitHub 热门项目",
+            "models": "模型与数据集",
+            "papers": "论文与代码",
+            "developer-news": "AI 开发者资讯",
+            "skills": "Skills / Agents / 工具动态",
+        }.get(item.category, "今日必看")
+        grouped.setdefault(section, []).append(item)
+    grouped["今日必看"] = item_list[:5]
+    return grouped
+
+
+class FixtureSummarizer:
+    def summarize(self, items: Iterable[ReportItem]) -> ReportContent:
+        item_list = list(items)
+        grouped = _group_items(item_list)
+        return ReportContent(
+            executive_summary="今天的 AI 开发者日报已生成，重点关注项目、模型、论文和工具动态。",
+            sections=grouped,
+            recommendations=["挑一个 GitHub 项目快速试用。", "收藏一篇论文或教程。", "检查是否有适合自动化工作流的新工具。"],
+        )

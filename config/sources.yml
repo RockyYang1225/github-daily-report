@@ -1,0 +1,62 @@
+report:
+  title: AI 开发者日报
+  timezone: Asia/Shanghai
+  language: zh-CN
+
+limits:
+  per_source: 8
+  final_items: 20
+
+keywords:
+  - AI
+  - LLM
+  - Agent
+  - MCP
+  - RAG
+  - OpenAI
+  - Claude
+  - Gemini
+  - Cursor
+  - Codex
+  - LangChain
+  - LlamaIndex
+  - Hugging Face
+  - diffusion
+  - embedding
+
+sources:
+  github: true
+  huggingface: true
+  papers: true
+  arxiv: true
+  rss: true
+  skills: true
+
+github_queries:
+  - "LLM agent stars:>100 pushed:>2026-01-01"
+  - "RAG OR embedding stars:>100 pushed:>2026-01-01"
+  - "MCP OR codex OR claude-code stars:>20 pushed:>2026-01-01"
+
+arxiv_categories:
+  - cs.AI
+  - cs.LG
+  - cs.CL
+  - cs.CV
+
+rss_feeds:
+  - name: OpenAI
+    url: https://openai.com/news/rss.xml
+  - name: Anthropic
+    url: https://www.anthropic.com/news/rss.xml
+  - name: Google DeepMind
+    url: https://deepmind.google/discover/blog/rss.xml
+  - name: Hugging Face Blog
+    url: https://huggingface.co/blog/feed.xml
+  - name: LangChain Blog
+    url: https://blog.langchain.com/rss/
+  - name: LlamaIndex Blog
+    url: https://www.llamaindex.ai/blog/rss.xml
+  - name: Vercel
+    url: https://vercel.com/blog/rss
+  - name: GitHub Blog
+    url: https://github.blog/feed/

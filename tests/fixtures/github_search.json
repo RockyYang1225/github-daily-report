@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "full_name": "acme/agent-kit",
+      "html_url": "https://github.com/acme/agent-kit",
+      "description": "Toolkit for building AI agents",
+      "stargazers_count": 1234,
+      "updated_at": "2026-05-14T01:02:03Z",
+      "topics": ["ai", "agents", "mcp"]
+    }
+  ]
+}

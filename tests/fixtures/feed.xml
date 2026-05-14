@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>OpenAI Blog</title>
+    <item>
+      <title>New model release</title>
+      <link>https://openai.com/news/new-model</link>
+      <description>A developer-focused model update.</description>
+      <pubDate>Thu, 14 May 2026 08:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
