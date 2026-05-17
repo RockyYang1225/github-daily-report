@@ -53,7 +53,9 @@ class OpenRouterSummarizer:
                         "content": (
                             "你是 AI 开发者日报编辑。请只返回严格 JSON，包含 "
                             "executive_summary、recommendations、item_enrichments。"
-                            "item_enrichments 必须以原始 URL 为 key，每项包含 summary_zh、why_it_matters、action_suggestion。"
+                            "item_enrichments 必须覆盖用户输入里的每一个 URL，并以原始 URL 为 key。"
+                            "每项必须包含中文 summary_zh、why_it_matters、action_suggestion。"
+                            "summary_zh 必须是中文项目介绍，不要照抄英文描述。"
                         ),
                     },
                     {

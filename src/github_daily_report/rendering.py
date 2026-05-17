@@ -22,9 +22,9 @@ def _item_markdown(item: ReportItem) -> str:
     tags = f" `{'`, `'.join(item.tags)}`" if item.tags else ""
     lines = [f"- [{item.title}]({item.url}){tags}"]
     lines.append(f"  来源：{item.source}")
-    summary = item.summary_zh or item.summary
+    summary = _chinese_intro(item)
     if summary:
-        lines.append(f"  说明：{summary}")
+        lines.append(f"  中文介绍：{summary}")
     if item.why_it_matters:
         lines.append(f"  值得关注：{item.why_it_matters}")
     if item.action_suggestion:
@@ -69,7 +69,7 @@ def _item_html(item: ReportItem) -> str:
         f'<span style="font-size:12px;color:#4f46e5;background:#eef2ff;padding:2px 6px;border-radius:4px;">{escape(tag)}</span>'
         for tag in item.tags
     )
-    summary = item.summary_zh or item.summary
+    summary = _chinese_intro(item)
     why = (
         f'<div style="color:#111827;margin-top:4px;"><strong>值得关注：</strong>{escape(item.why_it_matters)}</div>'
         if item.why_it_matters
@@ -84,12 +84,20 @@ def _item_html(item: ReportItem) -> str:
         '<li style="margin:0 0 12px 0;">'
         f'<a href="{escape(item.url)}" style="color:#2563eb;text-decoration:none;font-weight:600;">{escape(item.title)}</a>'
         f'<div style="color:#6b7280;margin-top:4px;">来源：{escape(item.source)}</div>'
-        f'<div style="color:#374151;margin-top:4px;">{escape(summary)}</div>'
+        f'<div style="color:#374151;margin-top:4px;"><strong>中文介绍：</strong>{escape(summary)}</div>'
         f"{why}"
         f"{action}"
         f'<div style="margin-top:6px;">{tags}</div>'
         "</li>"
     )
+
+
+def _chinese_intro(item: ReportItem) -> str:
+    if item.summary_zh:
+        return item.summary_zh
+    if item.summary:
+        return f"这是一个来自 {item.source} 的 {item.category} 项目，原始描述为：{item.summary}"
+    return f"这是一个来自 {item.source} 的 {item.category} 项目，建议打开链接查看项目详情。"
 
 
 def _list_html(items: Iterable[str]) -> str:

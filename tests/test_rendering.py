@@ -40,5 +40,14 @@ def test_render_markdown_includes_chinese_item_explanation(sample_items):
     markdown = render_markdown(report)
 
     assert "来源：GitHub" in markdown
-    assert "说明：一个用于构建 Agent 工作流的工具包。" in markdown
+    assert "中文介绍：一个用于构建 Agent 工作流的工具包。" in markdown
     assert "值得关注：适合快速验证工具调用和状态管理。" in markdown
+
+
+def test_render_markdown_uses_chinese_fallback_when_item_lacks_enrichment(sample_items):
+    sample_items[0].summary = "The fastest repo in history to surpass 100K stars."
+    report = DailyReport.for_test(sample_items[:1])
+
+    markdown = render_markdown(report)
+
+    assert "中文介绍：这是一个来自 GitHub 的 github 项目，原始描述为：The fastest repo in history to surpass 100K stars." in markdown
