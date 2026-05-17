@@ -52,5 +52,7 @@ def test_dry_run_uses_history_to_avoid_recent_recommendations(tmp_path, monkeypa
     )
 
     assert result.exit_code == 0
-    markdown = next(reports.glob("*.md")).read_text(encoding="utf-8")
+    generated_reports = [path for path in reports.glob("*.md") if path.name != "2026-05-17.md"]
+    assert generated_reports
+    markdown = generated_reports[0].read_text(encoding="utf-8")
     assert "https://github.com/acme/agent-kit" not in markdown

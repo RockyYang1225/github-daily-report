@@ -14,7 +14,8 @@ class SummarizerError(RuntimeError):
     """Raised when the LLM cannot produce valid report content."""
 
 
-DEFAULT_SECTION_LIMIT = 10
+DEFAULT_SECTION_LIMIT = 5
+TODAY_HIGHLIGHTS_LIMIT = 10
 
 
 class OpenRouterSummarizer:
@@ -57,8 +58,9 @@ class OpenRouterSummarizer:
                             "你是 AI 开发者日报编辑。请只返回严格 JSON，包含 "
                             "executive_summary、recommendations、item_enrichments。"
                             "item_enrichments 必须覆盖用户输入里的每一个 URL，并以原始 URL 为 key。"
-                            "每项必须包含中文 summary_zh、why_it_matters、action_suggestion。"
+                            "每项必须包含中文 summary_zh、why_it_matters、action_suggestion、detail_zh。"
                             "summary_zh 必须是中文项目介绍，不要照抄英文描述。"
+                            "detail_zh 要更详细，说明项目用途、适合人群、可尝试的场景。"
                         ),
                     },
                     {
@@ -100,7 +102,7 @@ def _group_items(items: Iterable[ReportItem]) -> dict:
         section_items = grouped.setdefault(section, [])
         if len(section_items) < DEFAULT_SECTION_LIMIT:
             section_items.append(item)
-    grouped["今日必看"] = item_list[:5]
+    grouped["今日必看"] = item_list[:TODAY_HIGHLIGHTS_LIMIT]
     return grouped
 
 
@@ -160,6 +162,7 @@ def _apply_item_enrichments(items: List[ReportItem], raw_enrichments) -> List[Re
                     "summary_zh": _clean_optional_text(enrichment.get("summary_zh")),
                     "why_it_matters": _clean_optional_text(enrichment.get("why_it_matters")),
                     "action_suggestion": _clean_optional_text(enrichment.get("action_suggestion")),
+                    "detail_zh": _clean_optional_text(enrichment.get("detail_zh")),
                 }
             )
         )

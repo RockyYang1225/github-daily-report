@@ -15,6 +15,7 @@ class ReportItem(BaseModel):
     summary_zh: Optional[str] = None
     why_it_matters: Optional[str] = None
     action_suggestion: Optional[str] = None
+    detail_zh: Optional[str] = None
     published_at: Optional[datetime] = None
     tags: List[str] = Field(default_factory=list)
     score_signals: Dict[str, float] = Field(default_factory=dict)

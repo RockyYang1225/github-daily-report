@@ -106,7 +106,8 @@ def test_openrouter_summarizer_enriches_items_by_url(sample_items):
                                 '"https://github.com/acme/agent-kit":{'
                                 '"summary_zh":"一个 Agent 工具包。",'
                                 '"why_it_matters":"适合验证工具调用链路。",'
-                                '"action_suggestion":"看 README 并跑 demo。"'
+                                '"action_suggestion":"看 README 并跑 demo。",'
+                                '"detail_zh":"这个项目适合用来搭建 Agent 原型。"'
                                 "}}}"
                             )
                         }
@@ -123,9 +124,10 @@ def test_openrouter_summarizer_enriches_items_by_url(sample_items):
     assert enriched.summary_zh == "一个 Agent 工具包。"
     assert enriched.why_it_matters == "适合验证工具调用链路。"
     assert enriched.action_suggestion == "看 README 并跑 demo。"
+    assert enriched.detail_zh == "这个项目适合用来搭建 Agent 原型。"
 
 
-def test_each_content_section_is_limited_to_ten_items():
+def test_today_highlights_are_ten_and_other_sections_are_five_items():
     categories = ["github", "models", "papers", "developer-news", "skills"]
     items = []
     for category in categories:
@@ -143,8 +145,9 @@ def test_each_content_section_is_limited_to_ten_items():
 
     content = FixtureSummarizer().summarize(items)
 
-    assert len(content.sections["GitHub 热门项目"]) == 10
-    assert len(content.sections["模型与数据集"]) == 10
-    assert len(content.sections["论文与代码"]) == 10
-    assert len(content.sections["AI 开发者资讯"]) == 10
-    assert len(content.sections["Skills / Agents / 工具动态"]) == 10
+    assert len(content.sections["今日必看"]) == 10
+    assert len(content.sections["GitHub 热门项目"]) == 5
+    assert len(content.sections["模型与数据集"]) == 5
+    assert len(content.sections["论文与代码"]) == 5
+    assert len(content.sections["AI 开发者资讯"]) == 5
+    assert len(content.sections["Skills / Agents / 工具动态"]) == 5

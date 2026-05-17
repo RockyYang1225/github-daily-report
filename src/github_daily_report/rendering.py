@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from html import escape
+import re
 from typing import Iterable, List
 
 from github_daily_report.models import DailyReport, ReportItem
@@ -16,6 +17,11 @@ SECTION_ORDER = [
     "今日行动建议",
     "抓取状态与失败来源",
 ]
+
+DEFAULT_SECTION_LIMIT = 5
+SECTION_ITEM_LIMITS = {
+    "今日必看": 10,
+}
 
 
 def _item_markdown(item: ReportItem) -> str:
@@ -54,7 +60,7 @@ def render_markdown(report: DailyReport) -> str:
             else:
                 lines.append("- 所有启用的数据源抓取正常。")
         else:
-            items = report.content.sections.get(section, [])
+            items = _section_items(report, section)
             if items:
                 lines.extend(_item_markdown(item) for item in items)
             else:
@@ -80,6 +86,12 @@ def _item_html(item: ReportItem) -> str:
         if item.action_suggestion
         else ""
     )
+    detail_id = _detail_id(item)
+    detail_link = (
+        f'<div style="margin-top:8px;"><a href="#{detail_id}" '
+        'style="display:inline-block;color:#ffffff;background:#2563eb;text-decoration:none;'
+        'font-size:12px;font-weight:600;padding:6px 10px;border-radius:4px;">查看详细介绍</a></div>'
+    )
     return (
         '<li style="margin:0 0 12px 0;">'
         f'<a href="{escape(item.url)}" style="color:#2563eb;text-decoration:none;font-weight:600;">{escape(item.title)}</a>'
@@ -88,6 +100,7 @@ def _item_html(item: ReportItem) -> str:
         f"{why}"
         f"{action}"
         f'<div style="margin-top:6px;">{tags}</div>'
+        f"{detail_link}"
         "</li>"
     )
 
@@ -98,6 +111,39 @@ def _chinese_intro(item: ReportItem) -> str:
     if item.summary:
         return f"这是一个来自 {item.source} 的 {item.category} 项目，原始描述为：{item.summary}"
     return f"这是一个来自 {item.source} 的 {item.category} 项目，建议打开链接查看项目详情。"
+
+
+def _detail_id(item: ReportItem) -> str:
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", item.title.lower()).strip("-")
+    return f"detail-{slug or 'item'}"
+
+
+def _item_detail_html(item: ReportItem) -> str:
+    detail = item.detail_zh or item.why_it_matters or _chinese_intro(item)
+    return (
+        f'<section id="{_detail_id(item)}" style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:16px;">'
+        f'<h3 style="font-size:16px;margin:0 0 8px;color:#111827;">{escape(item.title)}</h3>'
+        f'<p style="margin:0 0 8px;color:#374151;">{escape(detail)}</p>'
+        f'<p style="margin:0;"><a href="{escape(item.url)}" style="color:#2563eb;">打开原始链接</a></p>'
+        "</section>"
+    )
+
+
+def _all_report_items(report: DailyReport) -> List[ReportItem]:
+    seen = set()
+    items: List[ReportItem] = []
+    for section in SECTION_ORDER:
+        for item in _section_items(report, section):
+            if item.url in seen:
+                continue
+            seen.add(item.url)
+            items.append(item)
+    return items
+
+
+def _section_items(report: DailyReport, section: str) -> List[ReportItem]:
+    limit = SECTION_ITEM_LIMITS.get(section, DEFAULT_SECTION_LIMIT)
+    return list(report.content.sections.get(section, []))[:limit]
 
 
 def _list_html(items: Iterable[str]) -> str:
@@ -115,11 +161,19 @@ def render_html(report: DailyReport) -> str:
             entries = report.source_warnings or ["所有启用的数据源抓取正常。"]
             section_html.append(_list_html(f"<li>{escape(entry)}</li>" for entry in entries))
         else:
-            items = report.content.sections.get(section, [])
+            items = _section_items(report, section)
             if items:
                 section_html.append(_list_html(_item_html(item) for item in items))
             else:
                 section_html.append('<p style="color:#6b7280;margin:0;">暂无入选内容。</p>')
+
+    detail_items = _all_report_items(report)
+    details_html = ""
+    if detail_items:
+        details_html = (
+            '<h2 style="font-size:20px;margin:32px 0 12px;color:#111827;">项目详细介绍</h2>'
+            + "".join(_item_detail_html(item) for item in detail_items)
+        )
 
     return (
         '<html><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;'
@@ -128,5 +182,6 @@ def render_html(report: DailyReport) -> str:
         f'<h1 style="font-size:26px;margin:0 0 16px;">AI 开发者日报 - {report.report_date.isoformat()}</h1>'
         f'<p style="font-size:15px;color:#374151;">{escape(report.content.executive_summary)}</p>'
         + "".join(section_html)
+        + details_html
         + "</main></body></html>"
     )
