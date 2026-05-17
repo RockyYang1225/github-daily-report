@@ -14,9 +14,7 @@ class SummarizerError(RuntimeError):
     """Raised when the LLM cannot produce valid report content."""
 
 
-SECTION_LIMITS = {
-    "GitHub 热门项目": 10,
-}
+DEFAULT_SECTION_LIMIT = 10
 
 
 class OpenRouterSummarizer:
@@ -100,8 +98,7 @@ def _group_items(items: Iterable[ReportItem]) -> dict:
             "skills": "Skills / Agents / 工具动态",
         }.get(item.category, "今日必看")
         section_items = grouped.setdefault(section, [])
-        limit = SECTION_LIMITS.get(section)
-        if limit is None or len(section_items) < limit:
+        if len(section_items) < DEFAULT_SECTION_LIMIT:
             section_items.append(item)
     grouped["今日必看"] = item_list[:5]
     return grouped
