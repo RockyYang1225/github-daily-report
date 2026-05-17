@@ -3,7 +3,9 @@ import json
 import httpx
 import respx
 
+from github_daily_report.models import ReportItem
 from github_daily_report.summarizer import OpenRouterSummarizer
+from github_daily_report.summarizer import FixtureSummarizer
 
 
 @respx.mock
@@ -121,3 +123,22 @@ def test_openrouter_summarizer_enriches_items_by_url(sample_items):
     assert enriched.summary_zh == "一个 Agent 工具包。"
     assert enriched.why_it_matters == "适合验证工具调用链路。"
     assert enriched.action_suggestion == "看 README 并跑 demo。"
+
+
+def test_github_hot_projects_section_is_limited_to_ten_items():
+    items = [
+        ReportItem(
+            title=f"repo-{index}",
+            url=f"https://github.com/acme/repo-{index}",
+            source="GitHub Trending",
+            category="github",
+            summary="A useful project",
+            score_signals={"stars": 100 - index},
+        )
+        for index in range(12)
+    ]
+
+    content = FixtureSummarizer().summarize(items)
+
+    assert len(content.sections["GitHub 热门项目"]) == 10
+    assert content.sections["GitHub 热门项目"][-1].title == "repo-9"
