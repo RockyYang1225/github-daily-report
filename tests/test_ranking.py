@@ -38,3 +38,12 @@ def test_rank_items_preserves_category_diversity():
     )
 
     assert [entry.category for entry in ranked] == ["github", "papers", "models"]
+
+
+def test_rank_items_prefers_unseen_urls_before_recently_seen():
+    seen = item("Seen Repo", "https://github.com/acme/seen", "github", 100)
+    unseen = item("Fresh Repo", "https://github.com/acme/fresh", "github", 10)
+
+    ranked = rank_items([seen, unseen], final_limit=1, seen_urls={"https://github.com/acme/seen"})
+
+    assert ranked == [unseen]

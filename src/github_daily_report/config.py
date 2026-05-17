@@ -28,13 +28,27 @@ class RssFeed(BaseModel):
     url: str
 
 
+class HistoryConfig(BaseModel):
+    lookback_days: int = 14
+
+
+class GitHubTrendingConfig(BaseModel):
+    enabled: bool = True
+    periods: List[str] = Field(default_factory=lambda: ["daily", "weekly"])
+    languages: List[str] = Field(default_factory=list)
+
+
 class PublicConfig(BaseModel):
     report: ReportSettings = Field(default_factory=ReportSettings)
     limits: Limits = Field(default_factory=Limits)
+    history: HistoryConfig = Field(default_factory=HistoryConfig)
+    github_trending: GitHubTrendingConfig = Field(default_factory=GitHubTrendingConfig)
     keywords: List[str] = Field(default_factory=list)
     rss_feeds: List[RssFeed] = Field(default_factory=list)
+    news_feeds: List[RssFeed] = Field(default_factory=list)
     sources: Dict[str, bool] = Field(default_factory=dict)
     github_queries: List[str] = Field(default_factory=list)
+    skills_queries: List[str] = Field(default_factory=list)
     arxiv_categories: List[str] = Field(default_factory=list)
 
 

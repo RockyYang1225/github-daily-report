@@ -20,8 +20,16 @@ SECTION_ORDER = [
 
 def _item_markdown(item: ReportItem) -> str:
     tags = f" `{'`, `'.join(item.tags)}`" if item.tags else ""
-    summary = f"：{item.summary}" if item.summary else ""
-    return f"- [{item.title}]({item.url}){tags}{summary}"
+    lines = [f"- [{item.title}]({item.url}){tags}"]
+    lines.append(f"  来源：{item.source}")
+    summary = item.summary_zh or item.summary
+    if summary:
+        lines.append(f"  说明：{summary}")
+    if item.why_it_matters:
+        lines.append(f"  值得关注：{item.why_it_matters}")
+    if item.action_suggestion:
+        lines.append(f"  建议：{item.action_suggestion}")
+    return "\n".join(lines)
 
 
 def render_markdown(report: DailyReport) -> str:
@@ -61,10 +69,24 @@ def _item_html(item: ReportItem) -> str:
         f'<span style="font-size:12px;color:#4f46e5;background:#eef2ff;padding:2px 6px;border-radius:4px;">{escape(tag)}</span>'
         for tag in item.tags
     )
+    summary = item.summary_zh or item.summary
+    why = (
+        f'<div style="color:#111827;margin-top:4px;"><strong>值得关注：</strong>{escape(item.why_it_matters)}</div>'
+        if item.why_it_matters
+        else ""
+    )
+    action = (
+        f'<div style="color:#111827;margin-top:4px;"><strong>建议：</strong>{escape(item.action_suggestion)}</div>'
+        if item.action_suggestion
+        else ""
+    )
     return (
         '<li style="margin:0 0 12px 0;">'
         f'<a href="{escape(item.url)}" style="color:#2563eb;text-decoration:none;font-weight:600;">{escape(item.title)}</a>'
-        f'<div style="color:#374151;margin-top:4px;">{escape(item.summary)}</div>'
+        f'<div style="color:#6b7280;margin-top:4px;">来源：{escape(item.source)}</div>'
+        f'<div style="color:#374151;margin-top:4px;">{escape(summary)}</div>'
+        f"{why}"
+        f"{action}"
         f'<div style="margin-top:6px;">{tags}</div>'
         "</li>"
     )

@@ -7,11 +7,12 @@ from typing import List
 import typer
 
 from github_daily_report.config import EnvConfig, load_env_config, load_public_config
+from github_daily_report.history import load_seen_urls
 from github_daily_report.mailer import EmailMessagePayload, SmtpConfig, send_report_email
 from github_daily_report.models import DailyReport, ReportItem, SourceResult
 from github_daily_report.ranking import rank_items
 from github_daily_report.rendering import render_html, render_markdown
-from github_daily_report.sources.github import GitHubSearchSource, fixture_items
+from github_daily_report.sources.github import GitHubSearchSource, GitHubTrendingSource, fixture_items
 from github_daily_report.sources.huggingface import HuggingFaceSource
 from github_daily_report.sources.papers import ArxivSource, PapersWithCodeSource
 from github_daily_report.sources.rss import RssSource
@@ -27,12 +28,30 @@ def _collect_fixture_results() -> List[SourceResult]:
         HuggingFaceSource().fetch(),
         ArxivSource().fetch(),
         PapersWithCodeSource().fetch(),
-        SkillsSource().fetch(),
+        SourceResult(
+            source="skills-fixtures",
+            items=[
+                ReportItem(
+                    title="fixture/agent-skill-kit",
+                    url="https://github.com/fixture/agent-skill-kit",
+                    source="Skills Fixture",
+                    category="skills",
+                    summary="Fixture toolkit for agent skills and MCP workflows.",
+                    tags=["skills", "agents", "mcp"],
+                    score_signals={"stars": 50},
+                )
+            ],
+        ),
     ]
 
 
 def _collect_live_results(config) -> List[SourceResult]:
     results: List[SourceResult] = []
+    if config.github_trending.enabled:
+        languages = config.github_trending.languages or [""]
+        for period in config.github_trending.periods:
+            for language in languages:
+                results.append(GitHubTrendingSource(period=period, language=language, limit=config.limits.per_source).fetch())
     if config.sources.get("github", True):
         for query in config.github_queries[: max(config.limits.per_source, 1)]:
             results.append(GitHubSearchSource(query, limit=config.limits.per_source).fetch())
@@ -41,9 +60,9 @@ def _collect_live_results(config) -> List[SourceResult]:
     if config.sources.get("papers", True):
         results.extend([ArxivSource().fetch(), PapersWithCodeSource().fetch()])
     if config.sources.get("skills", True):
-        results.append(SkillsSource().fetch())
+        results.append(SkillsSource(config.skills_queries, limit=config.limits.per_source).fetch())
     if config.sources.get("rss", True):
-        for feed in config.rss_feeds:
+        for feed in config.rss_feeds + config.news_feeds:
             results.append(RssSource(feed.name, feed.url, limit=config.limits.per_source).fetch())
     return results
 
@@ -61,7 +80,9 @@ def _build_report(config_path: Path, output_dir: Path, use_fixtures: bool, send_
     results = _collect_fixture_results() if use_fixtures else _collect_live_results(public_config)
     warnings = [warning for result in results for warning in result.warnings]
     items: List[ReportItem] = [item for result in results for item in result.items]
-    ranked = rank_items(items, public_config.limits.final_items)
+    seen = load_seen_urls(output_dir, today=date.today(), lookback_days=public_config.history.lookback_days)
+    warnings.extend(seen.warnings)
+    ranked = rank_items(items, public_config.limits.final_items, seen_urls=seen.urls)
 
     if use_fixtures:
         content = FixtureSummarizer().summarize(ranked)

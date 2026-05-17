@@ -4,8 +4,18 @@ report:
   language: zh-CN
 
 limits:
-  per_source: 8
-  final_items: 20
+  per_source: 10
+  final_items: 28
+
+history:
+  lookback_days: 14
+
+github_trending:
+  enabled: true
+  periods:
+    - daily
+    - weekly
+  languages: []
 
 keywords:
   - AI
@@ -37,6 +47,13 @@ github_queries:
   - "RAG OR embedding stars:>100 pushed:>2026-01-01"
   - "MCP OR codex OR claude-code stars:>20 pushed:>2026-01-01"
 
+skills_queries:
+  - "agent skills MCP stars:>10 pushed:>2026-01-01"
+  - "Claude Code agent stars:>10 pushed:>2026-01-01"
+  - "OpenAI Agents SDK stars:>10 pushed:>2026-01-01"
+  - "browser-use automation stars:>10 pushed:>2026-01-01"
+  - "RAG evaluation agent stars:>10 pushed:>2026-01-01"
+
 arxiv_categories:
   - cs.AI
   - cs.LG
@@ -60,3 +77,15 @@ rss_feeds:
     url: https://vercel.com/blog/rss
   - name: GitHub Blog
     url: https://github.blog/feed/
+
+news_feeds:
+  - name: GitHub Changelog
+    url: https://github.blog/changelog/feed/
+  - name: Simon Willison
+    url: https://simonwillison.net/atom/everything/
+  - name: The Batch
+    url: https://www.deeplearning.ai/the-batch/feed/
+  - name: Latent Space
+    url: https://www.latent.space/feed
+  - name: Microsoft AI
+    url: https://blogs.microsoft.com/ai/feed/

@@ -30,3 +30,15 @@ def test_render_html_is_email_friendly(sample_items):
     assert "<html" in html
     assert "style=" in html
     assert sample_items[0].url in html
+
+
+def test_render_markdown_includes_chinese_item_explanation(sample_items):
+    sample_items[0].summary_zh = "一个用于构建 Agent 工作流的工具包。"
+    sample_items[0].why_it_matters = "适合快速验证工具调用和状态管理。"
+    report = DailyReport.for_test(sample_items)
+
+    markdown = render_markdown(report)
+
+    assert "来源：GitHub" in markdown
+    assert "说明：一个用于构建 Agent 工作流的工具包。" in markdown
+    assert "值得关注：适合快速验证工具调用和状态管理。" in markdown

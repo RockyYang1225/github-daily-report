@@ -7,6 +7,7 @@ from typing import Iterable, List
 import httpx
 
 from github_daily_report.models import ReportContent, ReportItem
+from github_daily_report.ranking import normalize_item_url
 
 
 class SummarizerError(RuntimeError):
@@ -51,7 +52,8 @@ class OpenRouterSummarizer:
                         "role": "system",
                         "content": (
                             "你是 AI 开发者日报编辑。请只返回严格 JSON，包含 "
-                            "executive_summary、sections、recommendations。"
+                            "executive_summary、recommendations、item_enrichments。"
+                            "item_enrichments 必须以原始 URL 为 key，每项包含 summary_zh、why_it_matters、action_suggestion。"
                         ),
                     },
                     {
@@ -71,9 +73,10 @@ class OpenRouterSummarizer:
         except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError) as exc:
             raise SummarizerError(f"OpenRouter summarization failed: {exc}") from exc
 
+        enriched_items = _apply_item_enrichments(original_items, parsed.get("item_enrichments", {}))
         return ReportContent(
             executive_summary=parsed.get("executive_summary", ""),
-            sections=_group_items(original_items),
+            sections=_group_items(enriched_items),
             recommendations=_normalize_recommendations(parsed.get("recommendations", [])),
         )
 
@@ -132,6 +135,32 @@ def _normalize_recommendations(raw_recommendations) -> List[str]:
         if text:
             normalized.append(text)
     return normalized
+
+
+def _apply_item_enrichments(items: List[ReportItem], raw_enrichments) -> List[ReportItem]:
+    if not isinstance(raw_enrichments, dict):
+        return items
+    enrichments = {normalize_item_url(url): value for url, value in raw_enrichments.items() if isinstance(value, dict)}
+    enriched_items: List[ReportItem] = []
+    for item in items:
+        enrichment = enrichments.get(normalize_item_url(item.url))
+        if not enrichment:
+            enriched_items.append(item)
+            continue
+        enriched_items.append(
+            item.model_copy(
+                update={
+                    "summary_zh": _clean_optional_text(enrichment.get("summary_zh")),
+                    "why_it_matters": _clean_optional_text(enrichment.get("why_it_matters")),
+                    "action_suggestion": _clean_optional_text(enrichment.get("action_suggestion")),
+                }
+            )
+        )
+    return enriched_items
+
+
+def _clean_optional_text(value) -> str:
+    return str(value).strip() if value else None
 
 
 class FixtureSummarizer:

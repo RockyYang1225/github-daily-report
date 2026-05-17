@@ -31,6 +31,35 @@ sources:
     assert config.rss_feeds[0].name == "OpenAI"
 
 
+def test_load_public_config_reads_quality_upgrade_settings(tmp_path):
+    path = tmp_path / "sources.yml"
+    path.write_text(
+        """
+history:
+  lookback_days: 14
+github_trending:
+  enabled: true
+  periods: [daily, weekly]
+  languages: [python]
+skills_queries:
+  - agent skills MCP
+news_feeds:
+  - name: Cursor
+    url: https://cursor.com/changelog/rss
+""",
+        encoding="utf-8",
+    )
+
+    config = load_public_config(path)
+
+    assert config.history.lookback_days == 14
+    assert config.github_trending.enabled is True
+    assert config.github_trending.periods == ["daily", "weekly"]
+    assert config.github_trending.languages == ["python"]
+    assert config.skills_queries == ["agent skills MCP"]
+    assert config.news_feeds[0].name == "Cursor"
+
+
 def test_load_env_config_names_missing_required_keys(monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("OPENROUTER_MODEL", raising=False)
