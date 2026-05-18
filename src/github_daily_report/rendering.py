@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from html import escape
-import re
 from typing import Iterable, List
 
 from github_daily_report.models import DailyReport, ReportItem
@@ -35,6 +34,18 @@ def _item_markdown(item: ReportItem) -> str:
         lines.append(f"  值得关注：{item.why_it_matters}")
     if item.action_suggestion:
         lines.append(f"  建议：{item.action_suggestion}")
+    detail = _detail_intro(item)
+    if detail:
+        lines.extend(
+            [
+                "  <details>",
+                "  <summary>查看详细介绍</summary>",
+                "",
+                f"  {detail}",
+                "",
+                "  </details>",
+            ]
+        )
     return "\n".join(lines)
 
 
@@ -86,11 +97,14 @@ def _item_html(item: ReportItem) -> str:
         if item.action_suggestion
         else ""
     )
-    detail_id = _detail_id(item)
-    detail_link = (
-        f'<div style="margin-top:8px;"><a href="#{detail_id}" '
-        'style="display:inline-block;color:#ffffff;background:#2563eb;text-decoration:none;'
-        'font-size:12px;font-weight:600;padding:6px 10px;border-radius:4px;">查看详细介绍</a></div>'
+    detail = _detail_intro(item)
+    detail_html = (
+        '<details style="margin-top:8px;border:1px solid #dbeafe;background:#eff6ff;padding:8px 10px;">'
+        '<summary style="cursor:pointer;color:#1d4ed8;font-size:13px;font-weight:700;">查看详细介绍</summary>'
+        f'<div style="margin-top:8px;color:#1f2937;">{escape(detail)}</div>'
+        "</details>"
+        if detail
+        else ""
     )
     return (
         '<li style="margin:0 0 12px 0;">'
@@ -100,7 +114,7 @@ def _item_html(item: ReportItem) -> str:
         f"{why}"
         f"{action}"
         f'<div style="margin-top:6px;">{tags}</div>'
-        f"{detail_link}"
+        f"{detail_html}"
         "</li>"
     )
 
@@ -113,32 +127,8 @@ def _chinese_intro(item: ReportItem) -> str:
     return f"这是一个来自 {item.source} 的 {item.category} 项目，建议打开链接查看项目详情。"
 
 
-def _detail_id(item: ReportItem) -> str:
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", item.title.lower()).strip("-")
-    return f"detail-{slug or 'item'}"
-
-
-def _item_detail_html(item: ReportItem) -> str:
-    detail = item.detail_zh or item.why_it_matters or _chinese_intro(item)
-    return (
-        f'<section id="{_detail_id(item)}" style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:16px;">'
-        f'<h3 style="font-size:16px;margin:0 0 8px;color:#111827;">{escape(item.title)}</h3>'
-        f'<p style="margin:0 0 8px;color:#374151;">{escape(detail)}</p>'
-        f'<p style="margin:0;"><a href="{escape(item.url)}" style="color:#2563eb;">打开原始链接</a></p>'
-        "</section>"
-    )
-
-
-def _all_report_items(report: DailyReport) -> List[ReportItem]:
-    seen = set()
-    items: List[ReportItem] = []
-    for section in SECTION_ORDER:
-        for item in _section_items(report, section):
-            if item.url in seen:
-                continue
-            seen.add(item.url)
-            items.append(item)
-    return items
+def _detail_intro(item: ReportItem) -> str:
+    return item.detail_zh or item.why_it_matters or _chinese_intro(item)
 
 
 def _section_items(report: DailyReport, section: str) -> List[ReportItem]:
@@ -167,14 +157,6 @@ def render_html(report: DailyReport) -> str:
             else:
                 section_html.append('<p style="color:#6b7280;margin:0;">暂无入选内容。</p>')
 
-    detail_items = _all_report_items(report)
-    details_html = ""
-    if detail_items:
-        details_html = (
-            '<h2 style="font-size:20px;margin:32px 0 12px;color:#111827;">项目详细介绍</h2>'
-            + "".join(_item_detail_html(item) for item in detail_items)
-        )
-
     return (
         '<html><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;'
         'line-height:1.6;color:#111827;background:#f9fafb;margin:0;padding:24px;">'
@@ -182,6 +164,5 @@ def render_html(report: DailyReport) -> str:
         f'<h1 style="font-size:26px;margin:0 0 16px;">AI 开发者日报 - {report.report_date.isoformat()}</h1>'
         f'<p style="font-size:15px;color:#374151;">{escape(report.content.executive_summary)}</p>'
         + "".join(section_html)
-        + details_html
         + "</main></body></html>"
     )

@@ -54,16 +54,17 @@ def test_render_markdown_uses_chinese_fallback_when_item_lacks_enrichment(sample
     assert "中文介绍：这是一个来自 GitHub 的 github 项目，原始描述为：The fastest repo in history to surpass 100K stars." in markdown
 
 
-def test_render_html_links_to_detailed_item_introduction(sample_items):
+def test_render_html_renders_collapsible_item_introduction(sample_items):
     sample_items[0].summary_zh = "一个用于构建 Agent 工作流的工具包。"
     sample_items[0].detail_zh = "这个项目把工具调用、状态管理和任务编排放在一起，适合快速验证 Agent 原型。"
     report = DailyReport.for_test(sample_items[:1])
 
     html = render_html(report)
 
+    assert "<details" in html
+    assert "<summary" in html
     assert "查看详细介绍" in html
-    assert "#detail-acme-agent-kit" in html
-    assert 'id="detail-acme-agent-kit"' in html
+    assert "#detail-acme-agent-kit" not in html
     assert "这个项目把工具调用、状态管理和任务编排放在一起" in html
 
 
