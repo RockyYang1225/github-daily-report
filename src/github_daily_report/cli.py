@@ -8,7 +8,7 @@ import typer
 
 from github_daily_report.config import EnvConfig, load_env_config, load_public_config
 from github_daily_report.history import load_seen_urls
-from github_daily_report.mailer import EmailMessagePayload, SmtpConfig, send_report_email
+from github_daily_report.mailer import EmailMessagePayload, MailError, SmtpConfig, send_report_email
 from github_daily_report.models import DailyReport, ReportItem, SourceResult
 from github_daily_report.ranking import rank_items
 from github_daily_report.rendering import render_html, render_markdown
@@ -17,9 +17,11 @@ from github_daily_report.sources.huggingface import HuggingFaceSource
 from github_daily_report.sources.papers import ArxivSource, PapersWithCodeSource
 from github_daily_report.sources.rss import RssSource
 from github_daily_report.sources.skills import SkillsSource
-from github_daily_report.summarizer import FixtureSummarizer, OpenRouterSummarizer
+from github_daily_report.summarizer import FallbackSummarizer, FixtureSummarizer, OpenRouterSummarizer, SummarizerError
 
 app = typer.Typer(help="Generate and send the AI developer daily report.")
+
+OPENROUTER_ATTEMPTS = 2
 
 
 def _collect_fixture_results() -> List[SourceResult]:
@@ -87,17 +89,33 @@ def _build_report(config_path: Path, output_dir: Path, use_fixtures: bool, send_
     if use_fixtures:
         content = FixtureSummarizer().summarize(ranked)
     else:
-        content = OpenRouterSummarizer(
+        summarizer = OpenRouterSummarizer(
             api_key=env_config.openrouter_api_key,
             model=env_config.openrouter_model,
             base_url=env_config.openrouter_base_url,
-        ).summarize(ranked)
+        )
+        try:
+            content = _summarize_with_retries(summarizer, ranked)
+        except SummarizerError as exc:
+            warnings.append(f"OpenRouter summarization failed after {OPENROUTER_ATTEMPTS} attempts: {exc}")
+            warnings.append("Used fallback report content without AI enrichment.")
+            content = FallbackSummarizer().summarize(ranked)
 
     report = DailyReport(report_date=date.today(), content=content, source_warnings=warnings)
     report.markdown = render_markdown(report)
     report.html = render_html(report)
     _write_report(report, output_dir)
     return report
+
+
+def _summarize_with_retries(summarizer: OpenRouterSummarizer, items: List[ReportItem]):
+    last_error: SummarizerError | None = None
+    for _ in range(OPENROUTER_ATTEMPTS):
+        try:
+            return summarizer.summarize(items)
+        except SummarizerError as exc:
+            last_error = exc
+    raise last_error or SummarizerError("OpenRouter summarization failed")
 
 
 def _smtp_config(env_config: EnvConfig) -> SmtpConfig:
@@ -133,5 +151,9 @@ def run(
         sender=env_config.mail_from or "",
         recipients=env_config.recipients,
     )
-    send_report_email(payload, _smtp_config(env_config), dry_run=False)
+    try:
+        send_report_email(payload, _smtp_config(env_config), dry_run=False)
+    except MailError as exc:
+        typer.echo(f"Report written but email delivery failed: {exc}", err=True)
+        raise typer.Exit(1) from exc
     typer.echo("Report sent.")

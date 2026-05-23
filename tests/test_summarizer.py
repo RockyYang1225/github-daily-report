@@ -4,8 +4,7 @@ import httpx
 import respx
 
 from github_daily_report.models import ReportItem
-from github_daily_report.summarizer import OpenRouterSummarizer
-from github_daily_report.summarizer import FixtureSummarizer
+from github_daily_report.summarizer import FallbackSummarizer, FixtureSummarizer, OpenRouterSummarizer
 
 
 @respx.mock
@@ -151,3 +150,12 @@ def test_today_highlights_are_ten_and_other_sections_are_five_items():
     assert len(content.sections["论文与代码"]) == 5
     assert len(content.sections["AI 开发者资讯"]) == 5
     assert len(content.sections["Skills / Agents / 工具动态"]) == 5
+
+
+def test_fallback_summarizer_builds_report_without_llm(sample_items):
+    content = FallbackSummarizer().summarize(sample_items)
+
+    assert "基础版" in content.executive_summary
+    assert content.sections["今日必看"]
+    assert content.sections["GitHub 热门项目"]
+    assert content.recommendations

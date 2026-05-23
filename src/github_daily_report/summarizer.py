@@ -182,3 +182,21 @@ class FixtureSummarizer:
             sections=grouped,
             recommendations=["挑一个 GitHub 项目快速试用。", "收藏一篇论文或教程。", "检查是否有适合自动化工作流的新工具。"],
         )
+
+
+class FallbackSummarizer:
+    def summarize(self, items: Iterable[ReportItem]) -> ReportContent:
+        item_list = list(items)
+        grouped = _group_items(item_list)
+        return ReportContent(
+            executive_summary=(
+                "今天的 AI 开发者日报以基础版生成：AI 总结服务暂时不可用，"
+                "以下内容按抓取来源和排序信号直接整理。"
+            ),
+            sections=grouped,
+            recommendations=[
+                "优先查看「今日必看」中的前 3 个条目，判断是否值得深入试用。",
+                "打开项目原始链接确认 README、更新频率和使用方式。",
+                "如果今天的基础版信息偏粗略，可以稍后重新触发 workflow 获取 AI 总结版。",
+            ],
+        )
