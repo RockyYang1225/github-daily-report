@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -45,7 +46,8 @@ def test_dry_run_uses_history_to_avoid_recent_recommendations(tmp_path, monkeypa
     )
     reports = tmp_path / "reports"
     reports.mkdir()
-    (reports / "2026-05-17.md").write_text("[old](https://github.com/acme/agent-kit)", encoding="utf-8")
+    recent_report = reports / f"{(date.today() - timedelta(days=1)).isoformat()}.md"
+    recent_report.write_text("[old](https://github.com/acme/agent-kit)", encoding="utf-8")
     monkeypatch.setenv("OPENROUTER_API_KEY", "key")
     monkeypatch.setenv("OPENROUTER_MODEL", "test-model")
 
@@ -55,7 +57,7 @@ def test_dry_run_uses_history_to_avoid_recent_recommendations(tmp_path, monkeypa
     )
 
     assert result.exit_code == 0
-    generated_reports = [path for path in reports.glob("*.md") if path.name != "2026-05-17.md"]
+    generated_reports = [path for path in reports.glob("*.md") if path != recent_report]
     assert generated_reports
     markdown = generated_reports[0].read_text(encoding="utf-8")
     assert "https://github.com/acme/agent-kit" not in markdown
