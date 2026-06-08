@@ -48,7 +48,7 @@ OPENROUTER_MODEL=~anthropic/claude-sonnet-latest
 
 ## Workflow
 
-The workflow runs at `0 23 * * *` UTC, which is Beijing morning. It also supports manual runs through `workflow_dispatch`.
+The workflow runs at `0 23 * * 0,2` UTC, which is Monday and Wednesday morning in Beijing. It also supports manual runs through `workflow_dispatch`.
 
 Each run:
 

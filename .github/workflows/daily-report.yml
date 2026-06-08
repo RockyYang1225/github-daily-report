@@ -2,7 +2,8 @@ name: Daily AI Developer Report
 
 on:
   schedule:
-    - cron: "0 23 * * *"
+    # 23:00 UTC on Sunday and Tuesday = Monday and Wednesday morning in Beijing.
+    - cron: "0 23 * * 0,2"
   workflow_dispatch:
 
 permissions:
