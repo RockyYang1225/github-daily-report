@@ -16,7 +16,7 @@ from github_daily_report.sources.github import GitHubSearchSource, GitHubTrendin
 from github_daily_report.sources.huggingface import HuggingFaceSource
 from github_daily_report.sources.papers import ArxivSource, PapersWithCodeSource
 from github_daily_report.sources.rss import RssSource
-from github_daily_report.sources.skills import SkillsSource
+from github_daily_report.sources.skills import SkillsDirectorySource, SkillsSource
 from github_daily_report.summarizer import FallbackSummarizer, FixtureSummarizer, OpenRouterSummarizer, SummarizerError
 
 app = typer.Typer(help="Generate and send the AI developer daily report.")
@@ -63,6 +63,8 @@ def _collect_live_results(config) -> List[SourceResult]:
         results.extend([ArxivSource().fetch(), PapersWithCodeSource().fetch()])
     if config.sources.get("skills", True):
         results.append(SkillsSource(config.skills_queries, limit=config.limits.per_source).fetch())
+    if config.sources.get("skills_directory", True):
+        results.append(SkillsDirectorySource(limit=config.limits.per_source).fetch())
     if config.sources.get("rss", True):
         for feed in config.rss_feeds + config.news_feeds:
             results.append(RssSource(feed.name, feed.url, limit=config.limits.per_source).fetch())

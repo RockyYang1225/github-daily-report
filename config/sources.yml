@@ -41,6 +41,7 @@ sources:
   arxiv: true
   rss: true
   skills: true
+  skills_directory: true
 
 github_queries:
   - "LLM agent stars:>100 pushed:>2026-01-01"
