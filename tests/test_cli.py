@@ -1,3 +1,4 @@
+import json
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -7,6 +8,72 @@ import github_daily_report.cli as cli
 from github_daily_report.cli import app
 from github_daily_report.mailer import MailError
 from github_daily_report.summarizer import SummarizerError
+
+
+def _write_test_config(tmp_path: Path) -> Path:
+    config_path = tmp_path / "sources.yml"
+    config_path.write_text(
+        "report: {title: AI Daily, timezone: Asia/Shanghai, language: zh-CN}\n"
+        "limits: {per_source: 2, final_items: 3}\n"
+        "history: {lookback_days: 14}\n"
+        "keywords: [AI]\n"
+        "rss_feeds: []\n"
+        "sources: {fixtures: true}\n",
+        encoding="utf-8",
+    )
+    return config_path
+
+
+def test_collect_exports_candidates_without_secret_env(tmp_path, monkeypatch):
+    runner = CliRunner()
+    config_path = _write_test_config(tmp_path)
+    output_path = tmp_path / "candidates.json"
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_MODEL", raising=False)
+    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
+
+    result = runner.invoke(
+        app,
+        [
+            "collect",
+            "--config",
+            str(config_path),
+            "--reports-dir",
+            str(tmp_path / "reports"),
+            "--output",
+            str(output_path),
+            "--use-fixtures",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["timezone"] == "Asia/Shanghai"
+    assert payload["items"]
+
+
+def test_dry_run_uses_configured_timezone_report_date(tmp_path, monkeypatch):
+    runner = CliRunner()
+    config_path = _write_test_config(tmp_path)
+    reports_dir = tmp_path / "reports"
+    monkeypatch.setenv("OPENROUTER_API_KEY", "key")
+    monkeypatch.setenv("OPENROUTER_MODEL", "test-model")
+    monkeypatch.setattr(cli, "current_report_date", lambda timezone_name: date(2030, 1, 2))
+
+    result = runner.invoke(
+        app,
+        [
+            "dry-run",
+            "--config",
+            str(config_path),
+            "--output-dir",
+            str(reports_dir),
+            "--use-fixtures",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (reports_dir / "2030-01-02.md").exists()
 
 
 def test_dry_run_writes_markdown_without_email(tmp_path, monkeypatch):

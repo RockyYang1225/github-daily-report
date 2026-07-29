@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import date
 from pathlib import Path
 from typing import List
 
 import typer
 
+from github_daily_report.codex_pipeline import build_candidate_batch, current_report_date
 from github_daily_report.config import EnvConfig, load_env_config, load_public_config
 from github_daily_report.history import load_seen_urls
 from github_daily_report.mailer import EmailMessagePayload, MailError, SmtpConfig, send_report_email
@@ -81,10 +81,11 @@ def _write_report(report: DailyReport, output_dir: Path) -> Path:
 def _build_report(config_path: Path, output_dir: Path, use_fixtures: bool, send_email: bool) -> DailyReport:
     public_config = load_public_config(config_path)
     env_config = load_env_config(send_email=send_email)
+    report_date = current_report_date(public_config.report.timezone)
     results = _collect_fixture_results() if use_fixtures else _collect_live_results(public_config)
     warnings = [warning for result in results for warning in result.warnings]
     items: List[ReportItem] = [item for result in results for item in result.items]
-    seen = load_seen_urls(output_dir, today=date.today(), lookback_days=public_config.history.lookback_days)
+    seen = load_seen_urls(output_dir, today=report_date, lookback_days=public_config.history.lookback_days)
     warnings.extend(seen.warnings)
     ranked = rank_items(items, public_config.limits.final_items, seen_urls=seen.urls)
 
@@ -103,7 +104,7 @@ def _build_report(config_path: Path, output_dir: Path, use_fixtures: bool, send_
             warnings.append("Used fallback report content without AI enrichment.")
             content = FallbackSummarizer().summarize(ranked)
 
-    report = DailyReport(report_date=date.today(), content=content, source_warnings=warnings)
+    report = DailyReport(report_date=report_date, content=content, source_warnings=warnings)
     report.markdown = render_markdown(report)
     report.html = render_html(report)
     _write_report(report, output_dir)
@@ -118,6 +119,31 @@ def _summarize_with_retries(summarizer: OpenRouterSummarizer, items: List[Report
         except SummarizerError as exc:
             last_error = exc
     raise last_error or SummarizerError("OpenRouter summarization failed")
+
+
+@app.command("collect")
+def collect(
+    config: Path = typer.Option(Path("config/sources.yml"), "--config"),
+    reports_dir: Path = typer.Option(Path("reports"), "--reports-dir"),
+    output: Path = typer.Option(Path("/tmp/github-daily-report-candidates.json"), "--output"),
+    use_fixtures: bool = typer.Option(False, "--use-fixtures"),
+):
+    public_config = load_public_config(config)
+    results = _collect_fixture_results() if use_fixtures else _collect_live_results(public_config)
+    batch = build_candidate_batch(
+        results=results,
+        reports_dir=reports_dir,
+        report_date=current_report_date(public_config.report.timezone),
+        timezone_name=public_config.report.timezone,
+        lookback_days=public_config.history.lookback_days,
+        final_items=public_config.limits.final_items,
+    )
+    if not batch.items:
+        typer.echo("No report candidates were collected.", err=True)
+        raise typer.Exit(1)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(batch.model_dump_json(indent=2), encoding="utf-8")
+    typer.echo(f"Candidates written: {output}")
 
 
 def _smtp_config(env_config: EnvConfig) -> SmtpConfig:
