@@ -80,12 +80,17 @@ class OpenRouterSummarizer:
         except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError) as exc:
             raise SummarizerError(f"OpenRouter summarization failed: {exc}") from exc
 
-        enriched_items = _apply_item_enrichments(original_items, parsed.get("item_enrichments", {}))
-        return ReportContent(
-            executive_summary=parsed.get("executive_summary", ""),
-            sections=_group_items(enriched_items),
-            recommendations=_normalize_recommendations(parsed.get("recommendations", [])),
-        )
+        return build_report_content(original_items, parsed)
+
+
+def build_report_content(items: Iterable[ReportItem], parsed: dict) -> ReportContent:
+    original_items = list(items)
+    enriched_items = _apply_item_enrichments(original_items, parsed.get("item_enrichments", {}))
+    return ReportContent(
+        executive_summary=str(parsed.get("executive_summary", "")).strip(),
+        sections=_group_items(enriched_items),
+        recommendations=_normalize_recommendations(parsed.get("recommendations", [])),
+    )
 
 
 def _group_items(items: Iterable[ReportItem]) -> dict:

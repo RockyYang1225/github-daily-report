@@ -8,8 +8,10 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, Field
 
 from github_daily_report.history import load_seen_urls
-from github_daily_report.models import ReportItem, SourceResult
-from github_daily_report.ranking import rank_items
+from github_daily_report.models import DailyReport, ReportItem, SourceResult
+from github_daily_report.ranking import normalize_item_url, rank_items
+from github_daily_report.rendering import render_html, render_markdown
+from github_daily_report.summarizer import build_report_content
 
 
 class CandidateBatch(BaseModel):
@@ -56,3 +58,21 @@ def build_candidate_batch(
         source_warnings=warnings,
         items=ranked,
     )
+
+
+def build_codex_report(batch: CandidateBatch, draft: CodexReportDraft) -> DailyReport:
+    candidate_urls = {normalize_item_url(item.url) for item in batch.items}
+    enrichment_urls = {normalize_item_url(url) for url in draft.item_enrichments}
+    missing = sorted(candidate_urls - enrichment_urls)
+    if missing:
+        raise ValueError(f"Missing Codex enrichment for: {', '.join(missing)}")
+
+    content = build_report_content(batch.items, draft.model_dump())
+    report = DailyReport(
+        report_date=batch.report_date,
+        content=content,
+        source_warnings=batch.source_warnings,
+    )
+    report.markdown = render_markdown(report)
+    report.html = render_html(report)
+    return report

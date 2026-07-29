@@ -5,7 +5,13 @@ from typing import List
 
 import typer
 
-from github_daily_report.codex_pipeline import build_candidate_batch, current_report_date
+from github_daily_report.codex_pipeline import (
+    CandidateBatch,
+    CodexReportDraft,
+    build_candidate_batch,
+    build_codex_report,
+    current_report_date,
+)
 from github_daily_report.config import EnvConfig, load_env_config, load_public_config
 from github_daily_report.history import load_seen_urls
 from github_daily_report.mailer import EmailMessagePayload, MailError, SmtpConfig, send_report_email
@@ -144,6 +150,23 @@ def collect(
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(batch.model_dump_json(indent=2), encoding="utf-8")
     typer.echo(f"Candidates written: {output}")
+
+
+@app.command("render-codex")
+def render_codex(
+    candidates: Path = typer.Option(..., "--candidates", exists=True, readable=True),
+    draft: Path = typer.Option(..., "--draft", exists=True, readable=True),
+    output_dir: Path = typer.Option(Path("reports"), "--output-dir"),
+    html_output: Path = typer.Option(Path("/tmp/github-daily-report.html"), "--html-output"),
+):
+    batch = CandidateBatch.model_validate_json(candidates.read_text(encoding="utf-8"))
+    codex_draft = CodexReportDraft.model_validate_json(draft.read_text(encoding="utf-8"))
+    report = build_codex_report(batch, codex_draft)
+    markdown_path = _write_report(report, output_dir)
+    html_output.parent.mkdir(parents=True, exist_ok=True)
+    html_output.write_text(report.html, encoding="utf-8")
+    typer.echo(f"Report written: {markdown_path}")
+    typer.echo(f"Email HTML written: {html_output}")
 
 
 def _smtp_config(env_config: EnvConfig) -> SmtpConfig:

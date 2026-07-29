@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 
 import github_daily_report.cli as cli
 from github_daily_report.cli import app
+from github_daily_report.codex_pipeline import CandidateBatch, CodexReportDraft
 from github_daily_report.mailer import MailError
 from github_daily_report.summarizer import SummarizerError
 
@@ -74,6 +75,52 @@ def test_dry_run_uses_configured_timezone_report_date(tmp_path, monkeypatch):
 
     assert result.exit_code == 0
     assert (reports_dir / "2030-01-02.md").exists()
+
+
+def test_render_codex_writes_markdown_and_html(tmp_path, sample_items):
+    candidates_path = tmp_path / "candidates.json"
+    draft_path = tmp_path / "draft.json"
+    html_path = tmp_path / "report.html"
+    reports_dir = tmp_path / "reports"
+    batch = CandidateBatch(
+        report_date="2026-07-29",
+        timezone="Asia/Shanghai",
+        items=sample_items,
+    )
+    draft = CodexReportDraft(
+        executive_summary="今天重点关注 Agent 工具。",
+        recommendations=["运行一个最小示例。"],
+        item_enrichments={
+            item.url: {
+                "summary_zh": f"{item.title} 的中文介绍。",
+                "why_it_matters": "适合快速验证。",
+                "action_suggestion": "阅读文档并运行示例。",
+                "detail_zh": "适合希望理解项目能力的开发者。",
+            }
+            for item in sample_items
+        },
+    )
+    candidates_path.write_text(batch.model_dump_json(indent=2), encoding="utf-8")
+    draft_path.write_text(draft.model_dump_json(indent=2), encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "render-codex",
+            "--candidates",
+            str(candidates_path),
+            "--draft",
+            str(draft_path),
+            "--output-dir",
+            str(reports_dir),
+            "--html-output",
+            str(html_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (reports_dir / "2026-07-29.md").exists()
+    assert "<html" in html_path.read_text(encoding="utf-8")
 
 
 def test_dry_run_writes_markdown_without_email(tmp_path, monkeypatch):
