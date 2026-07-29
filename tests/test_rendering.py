@@ -33,6 +33,16 @@ def test_render_html_is_email_friendly(sample_items):
     assert sample_items[0].url in html
 
 
+def test_renderers_omit_source_warning_section_when_there_are_no_warnings(sample_items):
+    report = DailyReport.for_test(sample_items)
+
+    markdown = render_markdown(report)
+    html = render_html(report)
+
+    assert "抓取状态与失败来源" not in markdown
+    assert "抓取状态与失败来源" not in html
+
+
 def test_render_markdown_includes_chinese_item_explanation(sample_items):
     sample_items[0].summary_zh = "一个用于构建 Agent 工作流的工具包。"
     sample_items[0].why_it_matters = "适合快速验证工具调用和状态管理。"

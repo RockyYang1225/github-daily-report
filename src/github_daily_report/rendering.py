@@ -58,6 +58,8 @@ def render_markdown(report: DailyReport) -> str:
     ]
 
     for section in SECTION_ORDER:
+        if section == "抓取状态与失败来源" and not report.source_warnings:
+            continue
         lines.extend([f"## {section}", ""])
         if section == "今日行动建议":
             recommendations = report.content.recommendations
@@ -66,10 +68,7 @@ def render_markdown(report: DailyReport) -> str:
             else:
                 lines.append("- 今天没有额外行动建议。")
         elif section == "抓取状态与失败来源":
-            if report.source_warnings:
-                lines.extend(f"- {warning}" for warning in report.source_warnings)
-            else:
-                lines.append("- 所有启用的数据源抓取正常。")
+            lines.extend(f"- {warning}" for warning in report.source_warnings)
         else:
             items = _section_items(report, section)
             if items:
@@ -143,13 +142,14 @@ def _list_html(items: Iterable[str]) -> str:
 def render_html(report: DailyReport) -> str:
     section_html: List[str] = []
     for section in SECTION_ORDER:
+        if section == "抓取状态与失败来源" and not report.source_warnings:
+            continue
         section_html.append(f'<h2 style="font-size:20px;margin:28px 0 12px;color:#111827;">{escape(section)}</h2>')
         if section == "今日行动建议":
             entries = report.content.recommendations or ["今天没有额外行动建议。"]
             section_html.append(_list_html(f"<li>{escape(entry)}</li>" for entry in entries))
         elif section == "抓取状态与失败来源":
-            entries = report.source_warnings or ["所有启用的数据源抓取正常。"]
-            section_html.append(_list_html(f"<li>{escape(entry)}</li>" for entry in entries))
+            section_html.append(_list_html(f"<li>{escape(entry)}</li>" for entry in report.source_warnings))
         else:
             items = _section_items(report, section)
             if items:

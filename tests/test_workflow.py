@@ -1,9 +1,10 @@
 from pathlib import Path
 
+import yaml
+
 
 def test_daily_report_workflow_is_manual_only():
-    workflow = Path(".github/workflows/daily-report.yml").read_text(encoding="utf-8")
+    workflow_text = Path(".github/workflows/daily-report.yml").read_text(encoding="utf-8")
+    workflow = yaml.load(workflow_text, Loader=yaml.BaseLoader)
 
-    assert "workflow_dispatch:" in workflow
-    assert "schedule:" not in workflow
-    assert "cron:" not in workflow
+    assert set(workflow["on"]) == {"workflow_dispatch"}

@@ -2,16 +2,25 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Annotated, Dict, List, Optional
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 from github_daily_report.history import load_seen_urls
 from github_daily_report.models import DailyReport, ReportItem, SourceResult
 from github_daily_report.ranking import normalize_item_url, rank_items
 from github_daily_report.rendering import render_html, render_markdown
 from github_daily_report.summarizer import build_report_content
+
+
+EditorialText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+def _require_chinese(value: str) -> str:
+    if not any("\u4e00" <= character <= "\u9fff" for character in value):
+        raise ValueError("Chinese text is required")
+    return value
 
 
 class CandidateBatch(BaseModel):
@@ -22,16 +31,31 @@ class CandidateBatch(BaseModel):
 
 
 class ItemEnrichment(BaseModel):
-    summary_zh: str = Field(min_length=1)
-    why_it_matters: str = Field(min_length=1)
-    action_suggestion: str = Field(min_length=1)
-    detail_zh: str = Field(min_length=1)
+    summary_zh: EditorialText
+    why_it_matters: EditorialText
+    action_suggestion: EditorialText
+    detail_zh: EditorialText
+
+    @field_validator("summary_zh", "why_it_matters", "action_suggestion", "detail_zh")
+    @classmethod
+    def require_chinese(cls, value: str) -> str:
+        return _require_chinese(value)
 
 
 class CodexReportDraft(BaseModel):
-    executive_summary: str = Field(min_length=1)
-    recommendations: List[str] = Field(min_length=1)
+    executive_summary: EditorialText
+    recommendations: List[EditorialText] = Field(min_length=1)
     item_enrichments: Dict[str, ItemEnrichment]
+
+    @field_validator("executive_summary")
+    @classmethod
+    def require_chinese_summary(cls, value: str) -> str:
+        return _require_chinese(value)
+
+    @field_validator("recommendations")
+    @classmethod
+    def require_chinese_recommendations(cls, values: List[str]) -> List[str]:
+        return [_require_chinese(value) for value in values]
 
 
 def current_report_date(timezone_name: str, now: Optional[datetime] = None) -> date:

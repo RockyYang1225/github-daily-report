@@ -11,11 +11,11 @@ from github_daily_report.codex_pipeline import (
 )
 
 
-def _complete_draft(items):
-    return CodexReportDraft(
-        executive_summary="今天重点关注 Agent 工具与模型工程。",
-        recommendations=["选择一个工具完成最小验证。"],
-        item_enrichments={
+def _draft_payload(items):
+    return {
+        "executive_summary": "今天重点关注 Agent 工具与模型工程。",
+        "recommendations": ["选择一个工具完成最小验证。"],
+        "item_enrichments": {
             item.url: {
                 "summary_zh": f"{item.title} 的中文介绍。",
                 "why_it_matters": "它能缩短验证路径。",
@@ -24,7 +24,11 @@ def _complete_draft(items):
             }
             for item in items
         },
-    )
+    }
+
+
+def _complete_draft(items):
+    return CodexReportDraft.model_validate(_draft_payload(items))
 
 
 def test_current_report_date_uses_configured_timezone():
@@ -38,6 +42,22 @@ def test_codex_draft_requires_non_empty_editorial_fields():
         CodexReportDraft.model_validate(
             {"executive_summary": "", "recommendations": [], "item_enrichments": {}}
         )
+
+
+def test_codex_draft_rejects_whitespace_only_editorial_fields(sample_items):
+    payload = _draft_payload(sample_items)
+    payload["executive_summary"] = "   "
+
+    with pytest.raises(ValidationError):
+        CodexReportDraft.model_validate(payload)
+
+
+def test_codex_draft_rejects_english_only_editorial_fields(sample_items):
+    payload = _draft_payload(sample_items)
+    payload["item_enrichments"][sample_items[0].url]["summary_zh"] = "English only summary"
+
+    with pytest.raises(ValidationError, match="Chinese text"):
+        CodexReportDraft.model_validate(payload)
 
 
 def test_candidate_batch_serializes_report_items(sample_items):

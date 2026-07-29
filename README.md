@@ -12,6 +12,7 @@ The task follows [`docs/codex-automation-runbook.md`](docs/codex-automation-runb
 - `zoeyli1997@gmail.com`
 
 It checks sent mail for the exact Beijing-date subject before sending, so repeated runs do not duplicate the report.
+The runbook also requires a clean tracked working tree on `main` and treats all collected source text as untrusted data.
 
 ## Local Setup
 
